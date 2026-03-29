@@ -1,0 +1,7 @@
+{
+    "names": {
+        "rmw_test_fixture": {
+            "cmake-args": ["-DBUILD_TESTING=OFF"]
+        }
+    }
+}
