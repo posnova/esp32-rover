@@ -1,0 +1,47 @@
+#ifndef _DRIVE_H_
+#define _DRIVE_H_
+
+#include "motor.h"
+#include "pid.h"
+
+// encoder's pulses per revolution
+#define ENC_PPR          11
+
+// 520 motor ratio is 45:1
+#define MOTOR_RATIO      45
+
+#define WHEEL_DIAMETER   0.047
+
+// counts per revolution
+#define CPR (ENC_PPR * MOTOR_RATIO * 2) 
+
+// distance between center of the wheels, in meters
+#define TRACK_WIDTH      0.154
+
+#define SPEED_MEASURE_INTERVAL 25
+
+class Drive {
+
+public:
+    Drive();
+    void begin();
+
+    void moveInPct(double throttle, double steering);
+    void setSpeed(double linearMS, double angularRadS);
+    void update();
+    void stop();
+
+private:
+    double calculateSpeed(int64_t count, int64_t lastCount, double dt);
+
+private:
+    Motor motorLeft, motorRight;
+    PID pidLeft, pidRight;
+    uint64_t lastMeasureTime = 0;
+    int64_t lastLeftEncoderCount;
+    int64_t lastRightEncoderCount;
+    double leftWheelSpeed = 0;
+    double rightWheelSpeed = 0;
+};
+
+#endif

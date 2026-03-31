@@ -11,12 +11,12 @@
 // #include <rclc/executor.h>
 // #include <sensor_msgs/msg/joy.h>
 
-#include "motor.h"
+#include "drive.h"
+#include "rc.h"
+#include "rc_map.h"
 
-
-// Set up a new Serial object
-HardwareSerial crsfSerial(2);
-AlfredoCRSF crsf;
+RC rc;
+Drive drive;
 
 // // micro-ROS objects
 // rcl_publisher_t publisher;
@@ -26,8 +26,7 @@ AlfredoCRSF crsf;
 // rcl_allocator_t allocator;
 // rclc_support_t support;
 
-Motor motorLeft(MOTOR_LEFT);
-Motor motorRight(MOTOR_RIGHT);
+
 
 #define LED_PIN 13
 
@@ -59,26 +58,6 @@ void error_loop() {
 //   }
 // }
 
-static void sendRxBattery(float voltage, float current, float capacity, float remaining) {
-  crsf_sensor_battery_t crsfBatt = { 0 };
-
-  // Values are MSB first (BigEndian)
-  crsfBatt.voltage = htobe16((uint16_t)(voltage * 10.0));   //Volts
-  crsfBatt.current = htobe16((uint16_t)(current * 10.0));   //Amps
-  crsfBatt.capacity = htobe16((uint16_t)(capacity)) << 8;   //mAh (with this implemetation max capacity is 65535mAh)
-  crsfBatt.remaining = (uint8_t)(remaining);                //percent
-  crsf.queuePacket(CRSF_SYNC_BYTE, CRSF_FRAMETYPE_BATTERY_SENSOR, &crsfBatt, sizeof(crsfBatt));
-}
-
-static void sendAttitude(float pitch, float roll, float yaw) {
-  crsf_sensor_attitude_t crsfAttitude = { 0 };
-
-  // Values are MSB first (BigEndian)
-  crsfAttitude.pitch = htobe16((uint16_t)(pitch*10000.0));
-  crsfAttitude.roll = htobe16((uint16_t)(roll*10000.0));
-  crsfAttitude.yaw = htobe16((uint16_t)(yaw*10000.0));
-  crsf.queuePacket(CRSF_SYNC_BYTE, CRSF_FRAMETYPE_ATTITUDE, &crsfAttitude, sizeof(crsfAttitude));
-}
 
 // void disableWifiBT() {
 //   esp_wifi_stop();
@@ -87,18 +66,16 @@ static void sendAttitude(float pitch, float roll, float yaw) {
 // }
 
 void setup() {
+  Serial.begin(115200);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);  
   
-  crsfSerial.begin(CRSF_BAUDRATE, SERIAL_8N1, 35, 36);
-  if (!crsfSerial) error_loop();
-
-  crsf.begin(crsfSerial);
+  rc.begin();
+  drive.begin();
 
   // set_microros_transports();
   //disableWifiBT();
- Motor::init();
 
   //delay(2000);
 
@@ -129,47 +106,27 @@ void setup() {
   // msg.buttons.capacity = AUX_SIZE;
   // msg.buttons.size = AUX_SIZE;
   // msg.buttons.data = buttons;
-
-
-  // pinMode(PWM_GPIO_M1A, OUTPUT);
-  // pinMode(PWM_GPIO_M1B, OUTPUT);
-  // pinMode(PWM_GPIO_M2A, OUTPUT);
-  // pinMode(PWM_GPIO_M2B, OUTPUT);
-
- motorLeft.set_speed(0);
- motorRight.set_speed(0);
 }
 
 uint64_t last_publish = 0;
 
 void loop() {
-    crsf.update();
+    rc.update();
+    drive.update();
 
-    if (crsf.isLinkUp()) {
-// Mapping 1000-2000 range to -1.0 to 1.0
-  float throttle = (crsf.getChannel(2) - 1500) / 500.0; 
-  float steering = (crsf.getChannel(1) - 1500) / 500.0;
-
-  // Simple Differential Drive Mix
-  motorLeft.set_speed(throttle + steering);
-  motorRight.set_speed(throttle - steering);
-
+    if (rc.isLinkUp()) {
+      float throttle = rc.getChannel(RC_PITCH);
+      float steering = rc.getChannel(RC_ROLL);
+      drive.moveInPct(throttle, steering);
     } else {
-        motorLeft.set_speed(0);
-  motorRight.set_speed(0);
+      drive.stop();
     }
 
 
-
-   motorLeft.update();
-   motorRight.update();
-
-
-
-if (millis() - last_publish > 25) {
-      last_publish = millis();
-           sendAttitude(0, 1, 2);
-     sendRxBattery(12.6, 1.2, 50, 100);
+    if (millis() - last_publish > 25) {
+        last_publish = millis();
+        rc.sendAttitude(0, 1, 2);
+        rc.sendRxBattery(12.6, 1.2, 50, 100);
     }
 
     // initJoyMessage();

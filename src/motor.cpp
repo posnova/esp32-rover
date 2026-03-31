@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "motor.h"
+#include "gpio.h"
 
 
 void set_pwm(int a, int b, int pwm, bool reverse) {
@@ -24,33 +25,49 @@ void Motor::init() {
 
   ledcAttachPin(PWM_GPIO_M2A, M2A);
   ledcAttachPin(PWM_GPIO_M2B, M2B);
+
+  ESP32Encoder::useInternalWeakPullResistors = puType::up;
 }
 
+Motor::Motor(int motorId): motorId(motorId) {
+    if (motorId == MOTOR_LEFT) {
+        encoder.attachHalfQuad(ENC_GPIO_H2A, ENC_GPIO_H2B);
+    } else {
+        encoder.attachHalfQuad(ENC_GPIO_H1A, ENC_GPIO_H1B);
+    }
+    encoder.setCount(0);
+}
 
-void Motor::set_speed(double speed) {
-    target_speed = speed;
+void Motor::setSpeed(double speed) {
+    targetSpeed = speed;
+}
+
+int64_t Motor::getPulseCount() { 
+    if (motorId == MOTOR_LEFT)
+        return -1 * encoder.getCount(); 
+    return encoder.getCount(); 
 }
 
 void Motor::update() {
     unsigned long now = millis();
-    if (now - last_update < LOOP_INTERVAL) return;
-    last_update = now;
+    if (now - lastUpdate < LOOP_INTERVAL) return;
+    lastUpdate = now;
 
-    if (current_speed < target_speed) {
-        current_speed += RAMP_STEP;
-        if (current_speed > target_speed) current_speed = target_speed;
-    } else if (current_speed > target_speed) {
-        current_speed -= RAMP_STEP;
-        if (current_speed < target_speed) current_speed = target_speed;
+    if (currentSpeed < targetSpeed) {
+        currentSpeed += RAMP_STEP;
+        if (currentSpeed > targetSpeed) currentSpeed = targetSpeed;
+    } else if (currentSpeed > targetSpeed) {
+        currentSpeed -= RAMP_STEP;
+        if (currentSpeed < targetSpeed) currentSpeed = targetSpeed;
     }
 
     int current_pwm = 0;
-    if (abs(current_speed) > 0.01) { // Small epsilon to avoid jitter at 0
-        current_pwm = PWM_DEADBAND + (PWM_MAX - PWM_DEADBAND) * min(1.0, abs(current_speed));
+    if (abs(currentSpeed) > 0.01) { // avoid jitter at 0
+        current_pwm = PWM_DEADBAND + (PWM_MAX - PWM_DEADBAND) * min(1.0, abs(currentSpeed));
     }
-    bool reverse = current_speed < 0;
+    bool reverse = currentSpeed < 0;
 
-    switch (motor) 
+    switch (motorId) 
     {
     case MOTOR_RIGHT:
         set_pwm(M1A, M1B, current_pwm, reverse);

@@ -1,17 +1,7 @@
 #ifndef __MOTOR_H__
 #define __MOTOR_H__
 
-#define PWM_GPIO_M1A              4
-#define PWM_GPIO_M1B              5
-
-#define PWM_GPIO_M2A              15
-#define PWM_GPIO_M2B              16
-
-#define PWM_GPIO_M3A              9
-#define PWM_GPIO_M3B              10
-
-#define PWM_GPIO_M4A              13
-#define PWM_GPIO_M4B              14
+#include <ESP32Encoder.h>
 
 #define PWM_MOTOR_RESOLUTION      8
 #define PWM_MOTOR_FREQ_HZ         25000
@@ -32,22 +22,25 @@
 
 #define RAMP_STEP                 0.05
 
-void motors_init();
-void motor_set_speed(int motor, double speed);
 
 class Motor {
 public:
-    Motor(int motor) : motor(motor) {};
+    Motor(int motorId);
     static void init();
 
     void update();
-    void set_speed(double speed);
+    void setSpeed(double speed);
+
+    int64_t getPulseCount();
+
+    int getMotorId() { return motorId; }
     
 private:
-    const int motor;
-    unsigned long last_update = 0;
-    double current_speed = 0;
-    double target_speed = 0;
+    const int motorId;
+    ESP32Encoder encoder;
+    unsigned long lastUpdate = 0;
+    double currentSpeed = 0;
+    double targetSpeed = 0;
 };
 
 
