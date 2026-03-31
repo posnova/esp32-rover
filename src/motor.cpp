@@ -39,41 +39,25 @@ Motor::Motor(int motorId): motorId(motorId) {
 }
 
 void Motor::setSpeed(double speed) {
-    targetSpeed = speed;
-}
-
-int64_t Motor::getPulseCount() { 
-    if (motorId == MOTOR_LEFT)
-        return -1 * encoder.getCount(); 
-    return encoder.getCount(); 
-}
-
-void Motor::update() {
-    unsigned long now = millis();
-    if (now - lastUpdate < LOOP_INTERVAL) return;
-    lastUpdate = now;
-
-    if (currentSpeed < targetSpeed) {
-        currentSpeed += RAMP_STEP;
-        if (currentSpeed > targetSpeed) currentSpeed = targetSpeed;
-    } else if (currentSpeed > targetSpeed) {
-        currentSpeed -= RAMP_STEP;
-        if (currentSpeed < targetSpeed) currentSpeed = targetSpeed;
+    int pwm = 0;
+    if (abs(speed) > 0.01) { // avoid jitter at 0
+        pwm = PWM_DEADBAND + (PWM_MAX - PWM_DEADBAND) * min(1.0, abs(speed));
     }
-
-    int current_pwm = 0;
-    if (abs(currentSpeed) > 0.01) { // avoid jitter at 0
-        current_pwm = PWM_DEADBAND + (PWM_MAX - PWM_DEADBAND) * min(1.0, abs(currentSpeed));
-    }
-    bool reverse = currentSpeed < 0;
+    bool reverse = speed < 0;
 
     switch (motorId) 
     {
     case MOTOR_RIGHT:
-        set_pwm(M1A, M1B, current_pwm, reverse);
+        set_pwm(M1A, M1B, pwm, reverse);
         break;
     case MOTOR_LEFT:
-        set_pwm(M2B, M2A, current_pwm, reverse);
+        set_pwm(M2B, M2A, pwm, reverse);
         break;
     }
+}
+
+int64_t Motor::getPulseCount() { 
+    if (motorId == MOTOR_LEFT)
+        return -encoder.getCount(); 
+    return encoder.getCount(); 
 }

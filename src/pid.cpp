@@ -17,15 +17,22 @@ void PID::update() {
     }
 
     uint64_t currentTime = millis();
+
+    if (lastTime == 0) {
+        lastTime = currentTime;
+        return;
+    }
+
     double dt = (currentTime - lastTime) / 1000.0;
 
     double error = targetMS - currentMS;
 
     integral += error * dt;
+    integral = constrain(integral, -0.2, 0.2);
+
     double derivative = (error - lastError) / dt;
     double output = (Kp * error) + (Ki * integral) + (Kd * derivative);
-    if (output > 1.0) output = 1.0;
-    if (output < -1.0) output = -1.0;
+    output = constrain(output, -1.0, 1.0);
 
     motor->setSpeed(output);
 

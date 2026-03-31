@@ -4,6 +4,7 @@
 const double WHEEL_L = WHEEL_DIAMETER * PI;
 const double DISTANCE_PER_PULSE = WHEEL_L / CPR;
 
+const double MIN_SPEED = 0.05;
 const double MAX_SPEED = 0.3;
 const double MAX_ANGULAR = 3.8;
 
@@ -26,31 +27,45 @@ void Drive::moveInPct(double throttle, double steering) {
     setSpeed(MAX_SPEED * throttle, MAX_ANGULAR * steering);
 }
 
+double Drive::limitSpeed(double speedMS) {
+    if (speedMS != 0) {
+        if (abs(speedMS) < MIN_SPEED) {
+            if (speedMS < 0)
+                speedMS = -MIN_SPEED;
+            else 
+                speedMS = MIN_SPEED;
+        }
+    }
+    return speedMS;
+}
+
 void Drive::setSpeed(double linearMS, double angularRadS) {
-    pidLeft.setTargetSpeed(linearMS + (angularRadS * (TRACK_WIDTH / 2.0)));
-    pidRight.setTargetSpeed(linearMS - (angularRadS * (TRACK_WIDTH / 2.0)));
+    pidLeft.setTargetSpeed(limitSpeed(linearMS + (angularRadS * (TRACK_WIDTH / 2.0))));
+    pidRight.setTargetSpeed(limitSpeed(linearMS - (angularRadS * (TRACK_WIDTH / 2.0))));
 }
 
 double Drive::calculateSpeed(int64_t count, int64_t lastCount, double dt) {
-    int64_t diff = abs(count) - abs(lastCount);
-    return diff * DISTANCE_PER_PULSE / (dt / 1000.0);
+    int64_t diff = count - lastCount; 
+    double dtSeconds = dt / 1000.0;
+    if (dtSeconds <= 0) return 0;
+    return (diff * DISTANCE_PER_PULSE) / dtSeconds;
 }
 
 void Drive::update() {
-    motorLeft.update();
-    motorRight.update();
-
     uint64_t now = millis();
     uint64_t dt = now - lastMeasureTime;
 
-    if (dt >= SPEED_MEASURE_INTERVAL) {
+    if (dt >= UPDATE_INTERVAL) {
         lastMeasureTime = now;
-        
-        leftWheelSpeed = calculateSpeed(motorLeft.getPulseCount(), lastLeftEncoderCount, dt);
-        rightWheelSpeed = calculateSpeed(motorRight.getPulseCount(), lastRightEncoderCount, dt);
 
-        lastLeftEncoderCount = motorLeft.getPulseCount();
-        lastRightEncoderCount = motorRight.getPulseCount();
+        int64_t countLeft = motorLeft.getPulseCount();
+        int64_t countRight = motorRight.getPulseCount();
+        
+        leftWheelSpeed = calculateSpeed(countLeft, lastLeftEncoderCount, dt);
+        rightWheelSpeed = calculateSpeed(countRight, lastRightEncoderCount, dt);
+
+        lastLeftEncoderCount = countLeft;
+        lastRightEncoderCount = countRight;
         
         pidLeft.setCurrentSpeed(leftWheelSpeed);
         pidRight.setCurrentSpeed(rightWheelSpeed);

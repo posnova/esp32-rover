@@ -18,17 +18,12 @@
 #define PWM_MAX                   255
 #define PWM_DEADBAND              130
 
-#define LOOP_INTERVAL             10
-
-#define RAMP_STEP                 0.05
-
 
 class Motor {
 public:
     Motor(int motorId);
     static void init();
 
-    void update();
     void setSpeed(double speed);
 
     int64_t getPulseCount();
@@ -38,9 +33,6 @@ public:
 private:
     const int motorId;
     ESP32Encoder encoder;
-    unsigned long lastUpdate = 0;
-    double currentSpeed = 0;
-    double targetSpeed = 0;
 };
 
 

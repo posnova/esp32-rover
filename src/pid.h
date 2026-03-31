@@ -4,8 +4,8 @@
 #include "motor.h"
 
 #define Kp          3.0
-#define Ki          2.0
-#define Kd          0.1
+#define Ki          1.5
+#define Kd          0.005
 
 class PID {
 

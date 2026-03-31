@@ -18,7 +18,7 @@
 // distance between center of the wheels, in meters
 #define TRACK_WIDTH      0.154
 
-#define SPEED_MEASURE_INTERVAL 25
+#define UPDATE_INTERVAL 10
 
 class Drive {
 
@@ -33,6 +33,7 @@ public:
 
 private:
     double calculateSpeed(int64_t count, int64_t lastCount, double dt);
+    double limitSpeed(double speedMS);
 
 private:
     Motor motorLeft, motorRight;
