@@ -23,7 +23,7 @@ void Drive::stop() {
     motorRight.setSpeed(0);
 }
 
-void Drive::moveInPct(double throttle, double steering) {
+void Drive::setSpeedInPct(double throttle, double steering) {
     setSpeed(MAX_SPEED * throttle, MAX_ANGULAR * steering);
 }
 

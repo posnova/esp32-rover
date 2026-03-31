@@ -26,7 +26,7 @@ public:
     Drive();
     void begin();
 
-    void moveInPct(double throttle, double steering);
+    void setSpeedInPct(double throttle, double steering);
     void setSpeed(double linearMS, double angularRadS);
     void update();
     void stop();

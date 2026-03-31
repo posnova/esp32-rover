@@ -31,4 +31,6 @@
 #define JOY_GPIO_RX               35
 #define JOY_GPIO_TX               36
 
+#define LED_GPIO                  13
+
 #endif

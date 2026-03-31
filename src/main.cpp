@@ -28,18 +28,15 @@ Drive drive;
 // rclc_support_t support;
 
 
-
-#define LED_PIN 13
-
 #define AXES_SIZE 4
 #define AUX_SIZE 12
 
 // Error handle loop
 void error_loop() {
   while(1) {
-    digitalWrite(LED_PIN, LOW);  
+    digitalWrite(LED_GPIO, LOW);  
     delay(1000);
-    digitalWrite(LED_PIN, HIGH);  
+    digitalWrite(LED_GPIO, HIGH);  
     delay(1000);
   }
 }
@@ -60,23 +57,23 @@ void error_loop() {
 // }
 
 
-// void disableWifiBT() {
-//   esp_wifi_stop();
-//   esp_bt_controller_disable();  
-//   esp_wifi_deinit();
-// }
+void disableWifiBT() {
+  esp_wifi_stop();
+  esp_bt_controller_disable();  
+  esp_wifi_deinit();
+}
 
 void setup() {
   Serial.begin(115200);
 
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);  
+  pinMode(LED_GPIO, OUTPUT);
+  digitalWrite(LED_GPIO, HIGH);  
   
   rc.begin();
   drive.begin();
 
   // set_microros_transports();
-  //disableWifiBT();
+  disableWifiBT();
 
   //delay(2000);
 
@@ -118,7 +115,7 @@ void loop() {
     if (rc.isLinkUp()) {
       float throttle = rc.getChannel(RC_PITCH);
       float steering = rc.getChannel(RC_ROLL);
-      drive.moveInPct(throttle, steering);
+      drive.setSpeedInPct(throttle, steering);
     } else {
       drive.stop();
     }
