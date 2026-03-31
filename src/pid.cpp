@@ -36,20 +36,20 @@ void PID::update() {
 
     motor->setSpeed(output);
 
-    Serial.print("Motor ");
-    Serial.print(motor->getMotorId());
-    Serial.print(" t: ");
-    Serial.print(targetMS);
-    Serial.print(" c: ");
-    Serial.print(currentMS);
-    Serial.print(" e: ");
-    Serial.print(error);
-    Serial.print(" i: ");
-    Serial.print(integral);
-    Serial.print(" d: ");
-    Serial.print(derivative);
-    Serial.print(" o: ");
-    Serial.println(output);
+    // Serial.print("Motor ");
+    // Serial.print(motor->getMotorId());
+    // Serial.print(" t: ");
+    // Serial.print(targetMS);
+    // Serial.print(" c: ");
+    // Serial.print(currentMS);
+    // Serial.print(" e: ");
+    // Serial.print(error);
+    // Serial.print(" i: ");
+    // Serial.print(integral);
+    // Serial.print(" d: ");
+    // Serial.print(derivative);
+    // Serial.print(" o: ");
+    // Serial.println(output);
 
     lastError = error;
     lastTime = currentTime;

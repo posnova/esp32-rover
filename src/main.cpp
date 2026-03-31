@@ -14,6 +14,7 @@
 #include "drive.h"
 #include "rc.h"
 #include "rc_map.h"
+#include "battery.h"
 
 RC rc;
 Drive drive;
@@ -124,9 +125,10 @@ void loop() {
 
 
     if (millis() - last_publish > 25) {
+        double voltage = get_battery_voltage();
         last_publish = millis();
         rc.sendAttitude(0, 1, 2);
-        rc.sendRxBattery(12.6, 1.2, 50, 100);
+        rc.sendRxBattery(voltage, 0, 0, get_remaining_capacity(voltage));
     }
 
     // initJoyMessage();
