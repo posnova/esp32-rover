@@ -32,5 +32,9 @@
 #define JOY_GPIO_TX               36
 
 #define LED_GPIO                  13
+#define BUZZER_GPIO               46
+
+#define IMU_SCL_GPIO              39
+#define IMU_SDA_GPIO              40
 
 #endif

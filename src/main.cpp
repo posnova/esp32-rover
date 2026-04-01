@@ -15,9 +15,13 @@
 #include "rc.h"
 #include "rc_map.h"
 #include "battery.h"
+#include "buzzer.h"
+#include "imu.h"
 
 RC rc;
 Drive drive;
+Buzzer buzzer;
+IMU imu;
 
 // // micro-ROS objects
 // rcl_publisher_t publisher;
@@ -32,7 +36,7 @@ Drive drive;
 #define AUX_SIZE 12
 
 // Error handle loop
-void error_loop() {
+void errorLoop() {
   while(1) {
     digitalWrite(LED_GPIO, LOW);  
     delay(1000);
@@ -64,16 +68,23 @@ void disableWifiBT() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  disableWifiBT();
 
   pinMode(LED_GPIO, OUTPUT);
   digitalWrite(LED_GPIO, HIGH);  
   
   rc.begin();
   drive.begin();
+  buzzer.begin();
+
+  if (!imu.begin()) errorLoop();
+
+  delay(1000);
+  imu.calibrate();
+  buzzer.beep();
 
   // set_microros_transports();
-  disableWifiBT();
+  
 
   //delay(2000);
 
@@ -107,25 +118,30 @@ void setup() {
 }
 
 uint64_t last_publish = 0;
+bool failsafe = false;
 
 void loop() {
     rc.update();
     drive.update();
+    buzzer.update();
+    imu.update();
 
     if (rc.isLinkUp()) {
+      failsafe = false;
       float throttle = rc.getChannel(RC_PITCH);
       float steering = rc.getChannel(RC_ROLL);
       drive.setSpeedInPct(throttle, steering);
-    } else {
+    } else if (!failsafe) {
+      failsafe = true;
       drive.stop();
+      buzzer.beep();
     }
 
-
     if (millis() - last_publish > 25) {
-        double voltage = get_battery_voltage();
+        double voltage = getBatteryVoltage();
         last_publish = millis();
-        rc.sendAttitude(0, 1, 2);
-        rc.sendRxBattery(voltage, 0, 0, get_remaining_capacity(voltage));
+        rc.sendAttitude(imu.getPitch(), imu.getRoll(), imu.getYaw());
+        rc.sendRxBattery(voltage, 0, 0, getRemainingBatteryCapacity(voltage));
     }
 
     // initJoyMessage();
