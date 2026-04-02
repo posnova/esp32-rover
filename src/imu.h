@@ -2,6 +2,7 @@
 #define _IMU_H_
 
 #include "ICM42670P.h"
+#include <sensor_msgs/msg/imu.h>
 
 class IMU {
 public:
@@ -11,9 +12,11 @@ public:
 
     void calibrate();
 
-    float getPitch() { return attitude[0]; }
-    float getRoll() { return attitude[1]; }
-    float getYaw() { return attitude[2]; }
+    float getPitch() const { return attitude[0]; }
+    float getRoll() const { return attitude[1]; }
+    float getYaw() const { return attitude[2]; }
+
+    void updateIMUMessage(sensor_msgs__msg__Imu& msg) const;
 
 private:
     void updateAttitude(float dt, float ax, float ay, float az, float gx, float gy, float gz);

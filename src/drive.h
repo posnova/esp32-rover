@@ -31,6 +31,11 @@ public:
     void update();
     void stop();
 
+    int64_t getLeftEncoderCount() const { return lastLeftEncoderCount; }
+    int64_t getRightEncoderCount() const { return lastRightEncoderCount; }
+    double getLeftWheelSpeed() const { return leftWheelSpeed; }
+    double getRightWheelSpeed() const { return rightWheelSpeed; }
+
 private:
     double calculateSpeed(int64_t count, int64_t lastCount, double dt);
     double limitSpeed(double speedMS);

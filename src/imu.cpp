@@ -46,6 +46,40 @@ void IMU::updateAttitude(float dt, float ax, float ay, float az, float gx, float
     if (attitude[2] < -M_PI) attitude[2] += 2.0f * M_PI;
 }
 
+void IMU::updateIMUMessage(sensor_msgs__msg__Imu& msg) const {
+    // Convert Euler angles (attitude) to Quaternion
+    // Assuming attitude[0] = Pitch, attitude[1] = Roll, attitude[2] = Yaw
+    float p = attitude[0];
+    float r = attitude[1];
+    float y = attitude[2];
+
+    double cy = cos(y * 0.5);
+    double sy = sin(y * 0.5);
+    double cp = cos(p * 0.5);
+    double sp = sin(p * 0.5);
+    double cr = cos(r * 0.5);
+    double sr = sin(r * 0.5);
+
+    msg.orientation.w = cr * cp * cy + sr * sp * sy;
+    msg.orientation.x = sr * cp * cy - cr * sp * sy;
+    msg.orientation.y = cr * sp * cy + sr * cp * sy;
+    msg.orientation.z = cr * cp * sy - sr * sp * cy;
+
+    // Fill Angular Velocity (Rad/s)
+    // Using the last processed values from 'event' and 'gyroOffset'
+    const float degToRad = M_PI / 180.0f;
+    msg.angular_velocity.x = ((event.gyro[0] - gyroOffset[0]) / 16.4f) * degToRad;
+    msg.angular_velocity.y = ((event.gyro[1] - gyroOffset[1]) / 16.4f) * degToRad;
+    msg.angular_velocity.z = ((event.gyro[2] - gyroOffset[2]) / 16.4f) * degToRad;
+
+    // Fill Linear Acceleration (m/s^2)
+    // Convert G-force to m/s^2 (1G = 9.80665 m/s^2)
+    const float gToMs2 = 9.80665f;
+    msg.linear_acceleration.x = (event.accel[0] / 2048.0f) * gToMs2;
+    msg.linear_acceleration.y = (event.accel[1] / 2048.0f) * gToMs2;
+    msg.linear_acceleration.z = (event.accel[2] / 2048.0f) * gToMs2;
+}
+
 void IMU::update() {
     uint64_t currentTime = micros();
     float dt = (currentTime - lastTime) / 1000000.0f; // in seconds

@@ -17,6 +17,8 @@ public:
     void on();
     void off();
 
+    bool isOn() const { return enabled; }
+
 private:
     bool enabled = false;
     bool oneBeep = false;

@@ -1,16 +1,20 @@
 #include "rc.h"
 
 void RC::begin() {
-    crsfSerial.begin(CRSF_BAUDRATE, SERIAL_8N1, JOY_GPIO_RX, JOY_GPIO_TX);
-    crsf.begin(crsfSerial);
+  crsfSerial.begin(CRSF_BAUDRATE, SERIAL_8N1, JOY_GPIO_RX, JOY_GPIO_TX);
+  crsf.begin(crsfSerial);
 }
 
 void RC::update() {
-    crsf.update();
+  crsf.update();
 }
 
-double RC::getChannel(int ch) {
-    return (crsf.getChannel(ch) - 1500) / 500.0; 
+double RC::getChannel(int ch) const {
+  return (crsf.getChannel(ch) - 1500) / 500.0; 
+}
+
+int RC::getChannelRaw(int ch) const {
+  return crsf.getChannel(ch);
 }
 
 void RC::sendRxBattery(float voltage, float current, float capacity, float remaining) {
