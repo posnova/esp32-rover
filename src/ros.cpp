@@ -52,10 +52,10 @@ bool ROS::pingAgent() {
 
 void ROS::tryInitROS() {
     set_microros_transports();
-    delay(100); 
+    delay(50); 
     Serial.begin(921600); //override hardcoded 115200 in micro_ros_arduino
 
-    delay(500);
+    delay(50);
 
     if (!pingAgent()) return;
 
@@ -167,13 +167,15 @@ void ROS::publishJointState(
 void ROS::update() {
     uint64_t currentTime = millis();
 
-    if (!agentConnected) {
-        tryInitROS();
-        return;
-    } else if (currentTime - lastAgentPingTime >= AGENT_PING_INTERVAL) {
-        if (!pingAgent()) {
-            freeROS();
+    if (currentTime - lastAgentPingTime >= AGENT_PING_INTERVAL) {
+        if (!agentConnected) {
+            tryInitROS();
             return;
+        } else {
+            if (!pingAgent()) {
+                freeROS();
+                return;
+            }
         }
         lastAgentPingTime = currentTime;
     }

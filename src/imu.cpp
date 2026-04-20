@@ -48,10 +48,9 @@ void IMU::updateAttitude(float dt, float ax, float ay, float az, float gx, float
 
 void IMU::updateIMUMessage(sensor_msgs__msg__Imu& msg) const {
     // Convert Euler angles (attitude) to Quaternion
-    // Assuming attitude[0] = Pitch, attitude[1] = Roll, attitude[2] = Yaw
-    float p = attitude[0];
-    float r = attitude[1];
-    float y = attitude[2];
+    float p = getPitch();
+    float r = getRoll();
+    float y = getYaw();
 
     double cy = cos(y * 0.5);
     double sy = sin(y * 0.5);

@@ -44,10 +44,10 @@ private:
     Motor motorLeft, motorRight;
     PID pidLeft, pidRight;
     uint64_t lastMeasureTime = 0;
-    int64_t lastLeftEncoderCount;
-    int64_t lastRightEncoderCount;
-    double leftWheelSpeed = 0;
-    double rightWheelSpeed = 0;
+    volatile int64_t lastLeftEncoderCount;
+    volatile int64_t lastRightEncoderCount;
+    volatile double leftWheelSpeed = 0;
+    volatile double rightWheelSpeed = 0;
 };
 
 #endif

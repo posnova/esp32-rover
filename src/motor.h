@@ -28,7 +28,7 @@ public:
 
     int64_t getPulseCount();
 
-    int getMotorId() { return motorId; }
+    int getMotorId() const { return motorId; }
     
 private:
     const int motorId;

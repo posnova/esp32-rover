@@ -17,6 +17,14 @@ int RC::getChannelRaw(int ch) const {
   return crsf.getChannel(ch);
 }
 
+int RC::getButtonState(int ch) const {
+  int raw = getChannelRaw(ch);
+  if (raw < 1100) return BTN_STATE_RELEASED;
+  if (raw > 1400 & raw < 1600) return BTN_STATE_CENTER;
+  if (raw > 1900) return BTN_STATE_PRESSED;
+  return BTN_STATE_UNKNOWN;
+}
+
 void RC::sendRxBattery(float voltage, float current, float capacity, float remaining) {
   crsf_sensor_battery_t crsfBatt = { 0 };
 

@@ -19,9 +19,9 @@ public:
 private:
     Motor* motor;
     uint64_t lastTime = 0;
-    double targetMS = 0;
+    volatile double targetMS = 0;
     double currentMS = 0;
-    double integral = 0;
+    volatile double integral = 0;
     double lastError = 0;
 };
 
