@@ -4,6 +4,7 @@ void ROS::begin() {
     setupJoyMessage();
     setupJointStateMessage();
     setupImuMessage();
+    setupLaserScanMessage();
 
     tryInitROS();
 }
@@ -44,6 +45,31 @@ void ROS::setupJoyMessage() {
     joyMsg.buttons.capacity = AUX_SIZE;
     joyMsg.buttons.size = AUX_SIZE;
     joyMsg.buttons.data = buttons;
+}
+
+void ROS::setupLaserScanMessage() {
+    sensor_msgs__msg__LaserScan__init(&laserScanMsg);
+
+    laserScanMsg.header.frame_id.data = (char*)"laser_frame";
+    laserScanMsg.header.frame_id.size = strlen(laserScanMsg.header.frame_id.data);
+    laserScanMsg.header.frame_id.capacity = strlen(laserScanMsg.header.frame_id.data) + 1;
+
+    //Allocate memory for the 12 points in a D500 packet
+    const size_t num_points = 12;
+    
+    laserScanMsg.ranges.data = (float*)malloc(num_points * sizeof(float));
+    laserScanMsg.ranges.size = num_points;
+    laserScanMsg.ranges.capacity = num_points;
+
+    laserScanMsg.intensities.data = (float*)malloc(num_points * sizeof(float));
+    laserScanMsg.intensities.size = num_points;
+    laserScanMsg.intensities.capacity = num_points;
+
+    //Set fixed sensor parameters (D500 specific)
+    laserScanMsg.range_min = 0.05; // 50mm
+    laserScanMsg.range_max = 12.0;  // 12m
+    laserScanMsg.scan_time = 0.1;           // Assuming 10Hz rotation
+    laserScanMsg.time_increment = 0.0002;   // 1 / (samples per second)
 }
 
 bool ROS::pingAgent() {
@@ -98,6 +124,13 @@ void ROS::tryInitROS() {
     "joint_states"
     );
 
+    rclc_publisher_init_default(
+    &laserScanPublisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, LaserScan),
+    "scan"
+    );
+
     rmw_uros_sync_session(1000);
 
     agentConnected = true;
@@ -111,6 +144,7 @@ void ROS::freeROS() {
     rcl_publisher_fini(&batteryPublisher, &node);
     rcl_publisher_fini(&imuPublisher, &node);
     rcl_publisher_fini(&jointStatePublisher, &node);
+    rcl_publisher_fini(&laserScanPublisher, &node);
     
     rcl_node_fini(&node);
     rclc_support_fini(&support);
@@ -164,6 +198,27 @@ void ROS::publishJointState(
     jointStateMsgUpdated = true;
 }
 
+void ROS::publishLidarPacket(const LidarPacket* pkg) {
+    // Calculate angles in Radians for ROS
+    float start_rad = (pkg->start_angle / 100.0f) * (M_PI / 180.0f);
+    float end_rad = (pkg->end_angle / 100.0f) * (M_PI / 180.0f);
+    
+    // Handle wrap-around
+    if (end_rad < start_rad) end_rad += (2.0f * M_PI);
+    
+    laserScanMsg.angle_min = start_rad;
+    laserScanMsg.angle_max = end_rad;
+    laserScanMsg.angle_increment = (end_rad - start_rad) / 11.0f;
+
+    // Fill the ranges (converting mm to meters)
+    for (int i = 0; i < 12; i++) {
+        laserScanMsg.ranges.data[i] = pkg->points[i].distance / 1000.0f;
+        laserScanMsg.intensities.data[i] = (float)pkg->points[i].confidence;
+    }
+
+    laserScanMsgUpdated = true;
+}
+
 void ROS::update() {
     uint64_t currentTime = millis();
 
@@ -202,5 +257,11 @@ void ROS::update() {
         updateHeaderTime(jointStateMsg.header);
         if (rcl_publish(&jointStatePublisher, &jointStateMsg, NULL) == RCL_RET_OK)
             jointStateMsgUpdated = false;
+    }
+
+    if (laserScanMsgUpdated) {
+        updateHeaderTime(laserScanMsg.header);
+        if (rcl_publish(&laserScanPublisher, &laserScanMsg, NULL) == RCL_RET_OK)
+            laserScanMsgUpdated = false;
     }
 }

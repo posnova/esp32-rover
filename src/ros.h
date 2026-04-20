@@ -10,10 +10,12 @@
 #include <sensor_msgs/msg/battery_state.h>
 #include <sensor_msgs/msg/imu.h>
 #include <sensor_msgs/msg/joint_state.h>
+#include <sensor_msgs/msg/laser_scan.h>
 
 #include "rc.h"
 #include "imu.h"
 #include "drive.h"
+#include "lidar.h"
 
 #define AGENT_PING_INTERVAL    5000
 
@@ -27,6 +29,7 @@ public:
     void publishBatteryStatusMessage(double voltage, int remainingCapcity);
     void publishImuMessage(const IMU& imu);
     void publishJointState(float leftWheelSpeed, float rightWheelSpeed, int64_t leftEncoderCount, int64_t rightEncoderCount);
+    void publishLidarPacket(const LidarPacket* pkg);
 
     bool isAgentConnected() const { return agentConnected; }
 
@@ -38,6 +41,7 @@ private:
     void setupJointStateMessage();
     void setupJoyMessage();
     void setupImuMessage();
+    void setupLaserScanMessage();
 
 private:
     bool agentConnected = false;
@@ -65,6 +69,10 @@ private:
     sensor_msgs__msg__JointState jointStateMsg;
     bool jointStateMsgUpdated = false;
     rcl_publisher_t jointStatePublisher;
+
+    sensor_msgs__msg__LaserScan laserScanMsg;
+    bool laserScanMsgUpdated = false;
+    rcl_publisher_t laserScanPublisher;
 
 };
 

@@ -11,6 +11,7 @@
 #include "battery.h"
 #include "buzzer.h"
 #include "imu.h"
+#include "lidar.h"
 #include "ros.h"
 
 #define RC_PUBLISH_INTERVAL          20
@@ -22,6 +23,7 @@ RC rc;
 Drive drive;
 Buzzer buzzer;
 IMU imu;
+Lidar lidar;
 ROS ros;
 
 uint64_t lastRcPublishTime = 0;
@@ -92,10 +94,17 @@ void driveLoop(void *pvParameters) {
 void controlLoop(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1000Hz
+    LidarPacket* lidarPacket;
+
     for (;;) {
         rc.update();
         buzzer.update();
         imu.update();
+
+        if ((lidarPacket = lidar.update()) != nullptr) {
+          ros.publishLidarPacket(lidarPacket);
+        }
+
         ros.update();
 
         armed = rc.getButtonState(RC_BTN_SA) == BTN_STATE_PRESSED;
@@ -138,6 +147,7 @@ void setup() {
   rc.begin();
   drive.begin();
   buzzer.begin();
+  lidar.begin();
 
   if (!imu.begin()) errorLoop();
 

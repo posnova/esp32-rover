@@ -37,4 +37,8 @@
 #define IMU_SCL_GPIO              39
 #define IMU_SDA_GPIO              40
 
+#define LIDAR_SERIAL              1
+#define LIDAR_TX_GPIO             17
+#define LIDAR_RX_GPIO             18
+
 #endif
