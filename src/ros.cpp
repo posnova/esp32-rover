@@ -1,11 +1,16 @@
 #include "ros.h"
 
+ROS* instance = nullptr;
+
+void cmdVelWrapper(const void * msgin) {
+    if (instance != nullptr) instance->handleTwist(msgin);
+}
+
 void ROS::begin() {
+    instance = this;
     setupJoyMessage();
     setupJointStateMessage();
     setupImuMessage();
-    setupLaserScanMessage();
-
     tryInitROS();
 }
 
@@ -47,31 +52,6 @@ void ROS::setupJoyMessage() {
     joyMsg.buttons.data = buttons;
 }
 
-void ROS::setupLaserScanMessage() {
-    sensor_msgs__msg__LaserScan__init(&laserScanMsg);
-
-    laserScanMsg.header.frame_id.data = (char*)"laser_frame";
-    laserScanMsg.header.frame_id.size = strlen(laserScanMsg.header.frame_id.data);
-    laserScanMsg.header.frame_id.capacity = strlen(laserScanMsg.header.frame_id.data) + 1;
-
-    //Allocate memory for the 12 points in a D500 packet
-    const size_t num_points = 12;
-    
-    laserScanMsg.ranges.data = (float*)malloc(num_points * sizeof(float));
-    laserScanMsg.ranges.size = num_points;
-    laserScanMsg.ranges.capacity = num_points;
-
-    laserScanMsg.intensities.data = (float*)malloc(num_points * sizeof(float));
-    laserScanMsg.intensities.size = num_points;
-    laserScanMsg.intensities.capacity = num_points;
-
-    //Set fixed sensor parameters (D500 specific)
-    laserScanMsg.range_min = 0.05; // 50mm
-    laserScanMsg.range_max = 12.0;  // 12m
-    laserScanMsg.scan_time = 0.1;           // Assuming 10Hz rotation
-    laserScanMsg.time_increment = 0.0002;   // 1 / (samples per second)
-}
-
 bool ROS::pingAgent() {
     return rmw_uros_ping_agent(50, 2) == RCL_RET_OK;
 }
@@ -97,38 +77,50 @@ void ROS::tryInitROS() {
 
     // Init Publishers
     rclc_publisher_init_default(
-    &joyPublisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Joy),
-    "joy"
+        &joyPublisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Joy),
+        "joy"
     );
 
     rclc_publisher_init_default(
-    &batteryPublisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, BatteryState),
-    "battery"
+        &batteryPublisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, BatteryState),
+        "battery"
     );
 
     rclc_publisher_init_default(
-    &imuPublisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-    "imu"
+        &imuPublisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
+        "imu"
     );
 
     rclc_publisher_init_default(
-    &jointStatePublisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-    "joint_states"
+        &jointStatePublisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
+        "joint_states"
     );
 
-    rclc_publisher_init_default(
-    &laserScanPublisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, LaserScan),
-    "scan"
+    rcl_ret_t rc = rclc_subscription_init_default(
+        &subscriber,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+        "cmd_vel"
+    );
+
+    executor = rclc_executor_get_zero_initialized_executor();
+    unsigned int num_handles = 1;
+    rclc_executor_init(&executor, &support.context, num_handles, &allocator);
+
+    rclc_executor_add_subscription(
+        &executor,
+        &subscriber,
+        &twistMsg,
+        &cmdVelWrapper,
+        ON_NEW_DATA
     );
 
     rmw_uros_sync_session(1000);
@@ -144,7 +136,7 @@ void ROS::freeROS() {
     rcl_publisher_fini(&batteryPublisher, &node);
     rcl_publisher_fini(&imuPublisher, &node);
     rcl_publisher_fini(&jointStatePublisher, &node);
-    rcl_publisher_fini(&laserScanPublisher, &node);
+    rcl_subscription_fini(&subscriber, &node);
     
     rcl_node_fini(&node);
     rclc_support_fini(&support);
@@ -198,28 +190,15 @@ void ROS::publishJointState(
     jointStateMsgUpdated = true;
 }
 
-void ROS::publishLidarPacket(const LidarPacket* pkg) {
-    // Calculate angles in Radians for ROS
-    float start_rad = (pkg->start_angle / 100.0f) * (M_PI / 180.0f);
-    float end_rad = (pkg->end_angle / 100.0f) * (M_PI / 180.0f);
-    
-    // Handle wrap-around
-    if (end_rad < start_rad) end_rad += (2.0f * M_PI);
-    
-    laserScanMsg.angle_min = start_rad;
-    laserScanMsg.angle_max = end_rad;
-    laserScanMsg.angle_increment = (end_rad - start_rad) / 11.0f;
-
-    // Fill the ranges (converting mm to meters)
-    for (int i = 0; i < 12; i++) {
-        laserScanMsg.ranges.data[i] = pkg->points[i].distance / 1000.0f;
-        laserScanMsg.intensities.data[i] = (float)pkg->points[i].confidence;
-    }
-
-    laserScanMsgUpdated = true;
+void ROS::handleTwist(const void* msgin) {
+    const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
+    requestedLinearSpeed = msg->linear.x;
+    requestedAngularSpeed = msg->angular.z;
 }
 
 void ROS::update() {
+    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+
     uint64_t currentTime = millis();
 
     if (currentTime - lastAgentPingTime >= AGENT_PING_INTERVAL) {
@@ -257,11 +236,5 @@ void ROS::update() {
         updateHeaderTime(jointStateMsg.header);
         if (rcl_publish(&jointStatePublisher, &jointStateMsg, NULL) == RCL_RET_OK)
             jointStateMsgUpdated = false;
-    }
-
-    if (laserScanMsgUpdated) {
-        updateHeaderTime(laserScanMsg.header);
-        if (rcl_publish(&laserScanPublisher, &laserScanMsg, NULL) == RCL_RET_OK)
-            laserScanMsgUpdated = false;
     }
 }

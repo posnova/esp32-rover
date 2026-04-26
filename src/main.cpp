@@ -11,7 +11,6 @@
 #include "battery.h"
 #include "buzzer.h"
 #include "imu.h"
-#include "lidar.h"
 #include "ros.h"
 
 #define RC_PUBLISH_INTERVAL          20
@@ -23,7 +22,6 @@ RC rc;
 Drive drive;
 Buzzer buzzer;
 IMU imu;
-Lidar lidar;
 ROS ros;
 
 uint64_t lastRcPublishTime = 0;
@@ -33,6 +31,7 @@ uint64_t lastJointPublishTime = 0;
 
 bool failsafe = false;
 bool armed = false;
+bool selfDrive = false;
 bool motorsStopped = false;
 
 // Error handle loop
@@ -94,20 +93,15 @@ void driveLoop(void *pvParameters) {
 void controlLoop(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1000Hz
-    LidarPacket* lidarPacket;
 
     for (;;) {
         rc.update();
         buzzer.update();
         imu.update();
-
-        if ((lidarPacket = lidar.update()) != nullptr) {
-          ros.publishLidarPacket(lidarPacket);
-        }
-
         ros.update();
 
         armed = rc.getButtonState(RC_BTN_SA) == BTN_STATE_PRESSED;
+        selfDrive = rc.getButtonState(RC_BTN_SD) == BTN_STATE_PRESSED;
 
         if (rc.isLinkUp()) {
           if (failsafe) {
@@ -118,9 +112,15 @@ void controlLoop(void *pvParameters) {
 
           if (armed) {
             motorsStopped = false;
-            float throttle = rc.getChannel(RC_PITCH);
-            float steering = rc.getChannel(RC_ROLL);
-            drive.setSpeedInPct(throttle, steering);
+            if (selfDrive) {
+              double requestedLinearSpeed = ros.getRequestedLinearSpeed();
+              double requestedAngularSpeed = ros.getRequestedAngularSpeed();
+              drive.setSpeed(requestedLinearSpeed, requestedAngularSpeed);
+            } else {
+              double throttle = rc.getChannel(RC_PITCH);
+              double steering = rc.getChannel(RC_ROLL);
+              drive.setSpeedInPct(throttle, steering);
+            }
           } else if (!motorsStopped) {
             motorsStopped = true;
             drive.stop();
@@ -147,7 +147,6 @@ void setup() {
   rc.begin();
   drive.begin();
   buzzer.begin();
-  lidar.begin();
 
   if (!imu.begin()) errorLoop();
 
